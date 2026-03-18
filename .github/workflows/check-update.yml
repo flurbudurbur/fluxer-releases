@@ -5,6 +5,10 @@ on:
     - cron: '0 6 * * *'   # Daily at 06:00 UTC
   workflow_dispatch:
 
+concurrency:
+  group: check-update
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -13,11 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Detect new releases
         id: detect
         run: |
+          set -euo pipefail
+
           declare -A FILE_KEY=(
             [linux/x64]=appimage  [linux/arm64]=appimage
             [win32/x64]=setup     [win32/arm64]=setup
@@ -63,6 +69,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           DATE=$(date -u +%Y-%m-%d)
 
           while IFS= read -r ENTRY; do
@@ -73,10 +80,10 @@ jobs:
             FILENAME=$(echo "$ENTRY" | jq -r '.filename')
 
             echo "Downloading $FILENAME..."
-            curl -L -s -o "$FILENAME" "$URL"
+            curl -fL -o "$FILENAME" "$URL"
 
             SHA256_HEX=$(sha256sum "$FILENAME" | awk '{print $1}')
-            SHA256_NIX="sha256-$(python3 -c "import binascii,base64; print(base64.b64encode(binascii.unhexlify('$SHA256_HEX')).decode())")"
+            SHA256_NIX="sha256-$(echo "$SHA256_HEX" | xxd -r -p | base64 -w 0)"
 
             # Create release if it doesn't exist yet (idempotent)
             if ! gh release view "v${VERSION}" > /dev/null 2>&1; then
@@ -90,14 +97,14 @@ jobs:
             RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${FILENAME}"
 
             # Append entry to versions.json
-            jq --arg version   "$VERSION"   \
-               --arg platform  "$PLATFORM"  \
-               --arg arch      "$ARCH"      \
-               --arg date      "$DATE"      \
-               --arg sha256_hex "$SHA256_HEX" \
-               --arg sha256_nix "$SHA256_NIX" \
-               --arg release_url "$RELEASE_URL" \
-               --arg original_url "$URL"    \
+            jq --arg version      "$VERSION"     \
+               --arg platform     "$PLATFORM"    \
+               --arg arch         "$ARCH"        \
+               --arg date         "$DATE"        \
+               --arg sha256_hex   "$SHA256_HEX"  \
+               --arg sha256_nix   "$SHA256_NIX"  \
+               --arg release_url  "$RELEASE_URL" \
+               --arg original_url "$URL"         \
                '. + [{
                  version: $version, platform: $platform, arch: $arch,
                  date: $date, sha256_hex: $sha256_hex, sha256_nix: $sha256_nix,
@@ -121,9 +128,11 @@ jobs:
       - name: Commit changes
         if: steps.detect.outputs.count != '0'
         run: |
+          set -euo pipefail
           VERSIONS=$(jq -r '[.[].version] | unique | join(", ")' new_artifacts.json)
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add flake.nix versions.json
           git commit -m "chore: release fluxer v${VERSIONS}"
+          git pull --rebase
           git push
