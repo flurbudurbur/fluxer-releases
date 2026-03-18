@@ -28,7 +28,7 @@
             url = "https://github.com/flurbudurbur/fluxer-releases/releases/download/v${version}/${appimageFilename.${system}}";
             hash = nixHash;
           };
-          appimageContents = pkgs.appimageTools.extract {
+          appimageContents = pkgs.appimageTools.extractType2 {
             pname = "fluxer";
             inherit version src;
           };
@@ -37,11 +37,24 @@
           inherit version src;
 
           extraInstallCommands = ''
-            install -Dm444 ${appimageContents}/fluxer.desktop \
-              $out/share/applications/fluxer.desktop 2>/dev/null || true
-            install -Dm444 ${appimageContents}/.DirIcon \
-              $out/share/pixmaps/fluxer.png 2>/dev/null || true
+            install -Dm644 ${appimageContents}/fluxer.desktop \
+              $out/share/applications/fluxer.desktop
+            substituteInPlace $out/share/applications/fluxer.desktop \
+              --replace-fail Exec=AppRun Exec=$out/bin/fluxer
+
+            install -Dm644 \
+              ${appimageContents}/usr/share/icons/hicolor/256x256/apps/fluxer.png \
+              $out/share/icons/hicolor/256x256/apps/fluxer.png
           '';
+
+          meta = with nixpkgs.lib; {
+            description = "Fluxer desktop client";
+            homepage = "https://fluxer.app";
+            license = licenses.agpl3Only;
+            platforms = builtins.attrNames appimageFilename;
+            mainProgram = "fluxer";
+            sourceProvenance = [ sourceTypes.binaryNativeCode ];
+          };
         };
 
       supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
