@@ -1,0 +1,129 @@
+name: Check for Fluxer Updates
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # Daily at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect new releases
+        id: detect
+        run: |
+          declare -A FILE_KEY=(
+            [linux/x64]=appimage  [linux/arm64]=appimage
+            [win32/x64]=setup     [win32/arm64]=setup
+            [darwin/x64]=dmg      [darwin/arm64]=dmg
+          )
+
+          echo '[]' > new_artifacts.json
+
+          for COMBO in linux/x64 linux/arm64 win32/x64 win32/arm64 darwin/x64 darwin/arm64; do
+            PLATFORM="${COMBO%/*}"
+            ARCH="${COMBO#*/}"
+            KEY="${FILE_KEY[$COMBO]}"
+
+            LATEST=$(curl -sf "https://api.fluxer.app/dl/desktop/stable/${PLATFORM}/${ARCH}/latest") || {
+              echo "WARNING: failed to query ${PLATFORM}/${ARCH}, skipping"
+              continue
+            }
+            VERSION=$(echo "$LATEST" | jq -r '.version')
+            URL=$(echo "$LATEST" | jq -r ".files.${KEY}.url")
+            FILENAME=$(basename "$URL" | cut -d'?' -f1)
+
+            ALREADY=$(jq --arg v "$VERSION" --arg p "$PLATFORM" --arg a "$ARCH" \
+              '[.[] | select(.version==$v and .platform==$p and .arch==$a)] | length' versions.json)
+
+            if [ "$ALREADY" -eq 0 ]; then
+              echo "NEW: ${PLATFORM}/${ARCH} v${VERSION} ($FILENAME)"
+              jq --arg v "$VERSION" --arg p "$PLATFORM" --arg a "$ARCH" \
+                 --arg k "$KEY" --arg u "$URL" --arg f "$FILENAME" \
+                 '. + [{version:$v, platform:$p, arch:$a, key:$k, url:$u, filename:$f}]' \
+                 new_artifacts.json > new_artifacts.json.tmp
+              mv new_artifacts.json.tmp new_artifacts.json
+            else
+              echo "SKIP: ${PLATFORM}/${ARCH} v${VERSION} already tracked"
+            fi
+          done
+
+          COUNT=$(jq 'length' new_artifacts.json)
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Found $COUNT new artifact(s) to process"
+
+      - name: Process new releases
+        if: steps.detect.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+
+          while IFS= read -r ENTRY; do
+            VERSION=$(echo "$ENTRY" | jq -r '.version')
+            PLATFORM=$(echo "$ENTRY" | jq -r '.platform')
+            ARCH=$(echo "$ENTRY"     | jq -r '.arch')
+            URL=$(echo "$ENTRY"      | jq -r '.url')
+            FILENAME=$(echo "$ENTRY" | jq -r '.filename')
+
+            echo "Downloading $FILENAME..."
+            curl -L -s -o "$FILENAME" "$URL"
+
+            SHA256_HEX=$(sha256sum "$FILENAME" | awk '{print $1}')
+            SHA256_NIX="sha256-$(python3 -c "import binascii,base64; print(base64.b64encode(binascii.unhexlify('$SHA256_HEX')).decode())")"
+
+            # Create release if it doesn't exist yet (idempotent)
+            if ! gh release view "v${VERSION}" > /dev/null 2>&1; then
+              gh release create "v${VERSION}" \
+                --title "Fluxer v${VERSION}" \
+                --notes "Automated mirror of Fluxer v${VERSION}. Original source: https://fluxer.app"
+            fi
+
+            gh release upload "v${VERSION}" "$FILENAME" --clobber
+
+            RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${FILENAME}"
+
+            # Append entry to versions.json
+            jq --arg version   "$VERSION"   \
+               --arg platform  "$PLATFORM"  \
+               --arg arch      "$ARCH"      \
+               --arg date      "$DATE"      \
+               --arg sha256_hex "$SHA256_HEX" \
+               --arg sha256_nix "$SHA256_NIX" \
+               --arg release_url "$RELEASE_URL" \
+               --arg original_url "$URL"    \
+               '. + [{
+                 version: $version, platform: $platform, arch: $arch,
+                 date: $date, sha256_hex: $sha256_hex, sha256_nix: $sha256_nix,
+                 release_url: $release_url, original_url: $original_url
+               }]' versions.json > versions.json.tmp
+            mv versions.json.tmp versions.json
+
+            # Update flake.nix for linux AppImages only
+            if [ "$PLATFORM" = "linux" ]; then
+              sed -i "s|version            = \".*\";|version            = \"${VERSION}\";|" flake.nix
+              if [ "$ARCH" = "x64" ]; then
+                sed -i "s|hash_x86_64_linux  = \".*\";|hash_x86_64_linux  = \"${SHA256_NIX}\";|" flake.nix
+              elif [ "$ARCH" = "arm64" ]; then
+                sed -i "s|hash_aarch64_linux = \".*\";|hash_aarch64_linux = \"${SHA256_NIX}\";|" flake.nix
+              fi
+            fi
+
+            rm -f "$FILENAME"
+          done < <(jq -c '.[]' new_artifacts.json)
+
+      - name: Commit changes
+        if: steps.detect.outputs.count != '0'
+        run: |
+          VERSIONS=$(jq -r '[.[].version] | unique | join(", ")' new_artifacts.json)
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add flake.nix versions.json
+          git commit -m "chore: release fluxer v${VERSIONS}"
+          git push
