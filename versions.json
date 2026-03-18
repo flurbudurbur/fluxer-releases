@@ -1,1 +1,62 @@
-[]
+[
+  {
+    "version": "0.0.8",
+    "platform": "linux",
+    "arch": "x64",
+    "date": "2026-03-18",
+    "sha256_hex": "19da012be67f776aae10863c20d338210cb9b73cc804133edc28095d09f4a80c",
+    "sha256_nix": "sha256-GdoBK+Z/d2quEIY8INM4IQy5tzzIBBM+3CgJXQn0qAw=",
+    "release_url": "https://github.com/flurbudurbur/fluxer-releases/releases/download/v0.0.8/fluxer-stable-0.0.8-x86_64.AppImage",
+    "original_url": "https://api.fluxer.app/dl/desktop/stable/linux/x64/fluxer-stable-0.0.8-x86_64.AppImage"
+  },
+  {
+    "version": "0.0.8",
+    "platform": "linux",
+    "arch": "arm64",
+    "date": "2026-03-18",
+    "sha256_hex": "c312cd7a46f0dc4d183dc0b6ec2396b69f15a612a6041f5b176769ee59e33dff",
+    "sha256_nix": "sha256-wxLNekbw3E0YPcC27COWtp8VphKmBB9bF2dp7lnjPf8=",
+    "release_url": "https://github.com/flurbudurbur/fluxer-releases/releases/download/v0.0.8/fluxer-stable-0.0.8-arm64.AppImage",
+    "original_url": "https://api.fluxer.app/dl/desktop/stable/linux/arm64/fluxer-stable-0.0.8-arm64.AppImage"
+  },
+  {
+    "version": "0.0.8",
+    "platform": "win32",
+    "arch": "x64",
+    "date": "2026-03-18",
+    "sha256_hex": "458107b8fc0c13feb26166680cf2b9bc80c8198a8759598287b0a244142e6a54",
+    "sha256_nix": "sha256-RYEHuPwME/6yYWZoDPK5vIDIGYqHWVmCh7CiRBQualQ=",
+    "release_url": "https://github.com/flurbudurbur/fluxer-releases/releases/download/v0.0.8/fluxer-stable-0.0.8-x64.exe",
+    "original_url": "https://api.fluxer.app/dl/desktop/stable/win32/x64/fluxer-stable-0.0.8-x64.exe"
+  },
+  {
+    "version": "0.0.8",
+    "platform": "win32",
+    "arch": "arm64",
+    "date": "2026-03-18",
+    "sha256_hex": "87125bb7479aabcc6c9f63e0d7f3d756a03505aa98ff0d3d00413647d4120008",
+    "sha256_nix": "sha256-hxJbt0eaq8xsn2Pg1/PXVqA1BaqY/w09AEE2R9QSAAg=",
+    "release_url": "https://github.com/flurbudurbur/fluxer-releases/releases/download/v0.0.8/fluxer-stable-0.0.8-arm64.exe",
+    "original_url": "https://api.fluxer.app/dl/desktop/stable/win32/arm64/fluxer-stable-0.0.8-arm64.exe"
+  },
+  {
+    "version": "0.0.8",
+    "platform": "darwin",
+    "arch": "x64",
+    "date": "2026-03-18",
+    "sha256_hex": "5239aaedc543f3e605eae47d3f7ba0e9e21abc881b23aea03ba1d1ae16a66e32",
+    "sha256_nix": "sha256-Ujmq7cVD8+YF6uR9P3ug6eIavIgbI66gO6HRrhambjI=",
+    "release_url": "https://github.com/flurbudurbur/fluxer-releases/releases/download/v0.0.8/fluxer-stable-0.0.8-arm64.dmg",
+    "original_url": "https://api.fluxer.app/dl/desktop/stable/darwin/x64/fluxer-stable-0.0.8-arm64.dmg"
+  },
+  {
+    "version": "0.0.8",
+    "platform": "darwin",
+    "arch": "arm64",
+    "date": "2026-03-18",
+    "sha256_hex": "f7b6e78eacdfbd446f8caf7df46a8f3d407266889d2acf93305a0c954b4590b8",
+    "sha256_nix": "sha256-97bnjqzfvURvjK999GqPPUByZoidKs+TMFoMlUtFkLg=",
+    "release_url": "https://github.com/flurbudurbur/fluxer-releases/releases/download/v0.0.8/fluxer-stable-0.0.8-arm64.dmg",
+    "original_url": "https://api.fluxer.app/dl/desktop/stable/darwin/arm64/fluxer-stable-0.0.8-arm64.dmg"
+  }
+]
